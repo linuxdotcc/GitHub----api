@@ -6,7 +6,7 @@
     },
     {
       "source": "/(.+)",
-      "destination": "/api/[...folder]"
+      "destination": "/api/[...folder]?folder=$1"
     }
   ]
 }
