@@ -138,7 +138,9 @@ export default async function handler(req, res) {
         
         // 设置响应头
         res.setHeader('Content-Type', contentType);
-        res.setHeader('Cache-Control', 'public, max-age=3600'); // 缓存1小时
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate'); // 禁用缓存确保随机
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
         res.setHeader('X-Image-Name', randomImage.name);
         res.setHeader('X-Total-Images', imageFiles.length.toString());
         
