@@ -1,0 +1,22 @@
+{
+  "name": "github-random-image-api",
+  "version": "1.0.0",
+  "description": "基于GitHub存储的随机图片API，部署在Vercel上",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'Build complete'",
+    "start": "vercel dev"
+  },
+  "keywords": [
+    "api",
+    "random",
+    "image",
+    "github",
+    "vercel"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {}
+}
