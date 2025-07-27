@@ -31,11 +31,18 @@ export default async function handler(req, res) {
     const GITHUB_TOKEN = process.env.GITHUB_TOKEN; // 可选，用于私有仓库或提高API限制
     
     // 如果没有Vercel环境变量，使用手动配置
-    const GITHUB_OWNER = VERCEL_GIT_REPO_OWNER || process.env.GITHUB_OWNER || 'your-username';
-    const GITHUB_REPO = VERCEL_GIT_REPO_SLUG || process.env.GITHUB_REPO || 'your-repo';
+    const GITHUB_OWNER = VERCEL_GIT_REPO_OWNER || process.env.GITHUB_OWNER || 'linuxdotcc';
+    const GITHUB_REPO = VERCEL_GIT_REPO_SLUG || process.env.GITHUB_REPO || 'GitHub----api';
+
+    // 调试信息
+    console.log('VERCEL_GIT_REPO_OWNER:', VERCEL_GIT_REPO_OWNER);
+    console.log('VERCEL_GIT_REPO_SLUG:', VERCEL_GIT_REPO_SLUG);
+    console.log('GITHUB_OWNER:', GITHUB_OWNER);
+    console.log('GITHUB_REPO:', GITHUB_REPO);
 
     // 构建GitHub API URL - 从本仓库根目录获取
     const apiUrl = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${folderPath}`;
+    console.log('GitHub API URL:', apiUrl);
     
     // 设置请求头
     const headers = {
@@ -51,14 +58,30 @@ export default async function handler(req, res) {
     const response = await fetch(apiUrl, { headers });
     
     if (!response.ok) {
+      const errorText = await response.text();
+      console.log('GitHub API Error Response:', errorText);
+      
       if (response.status === 404) {
         return res.status(404).json({
-          error: `文件夹 '${folderPath}' 不存在`,
+          error: `无法访问文件夹 '${folderPath}'`,
           repository: `${GITHUB_OWNER}/${GITHUB_REPO}`,
-          note: '请确保在仓库根目录下创建了对应的文件夹并上传了图片'
+          note: GITHUB_TOKEN ?
+            '请确保在仓库根目录下创建了对应的文件夹并上传了图片' :
+            '如果这是私有仓库，请在 Vercel 环境变量中添加 GITHUB_TOKEN',
+          solutions: [
+            '1. 将 GitHub 仓库设为公开（推荐）',
+            '2. 在 Vercel 项目设置中添加环境变量 GITHUB_TOKEN（GitHub Personal Access Token）'
+          ],
+          debug: {
+            apiUrl: apiUrl,
+            status: response.status,
+            hasToken: !!GITHUB_TOKEN,
+            response: errorText,
+            headers: Object.fromEntries(response.headers.entries())
+          }
         });
       }
-      throw new Error(`GitHub API错误: ${response.status}`);
+      throw new Error(`GitHub API错误: ${response.status} - ${errorText}`);
     }
 
     const files = await response.json();
@@ -102,9 +125,35 @@ export default async function handler(req, res) {
         repository: `${GITHUB_OWNER}/${GITHUB_REPO}`
       });
     } else {
-      // 默认重定向到图片URL
-      res.setHeader('Cache-Control', 'no-cache');
-      return res.redirect(302, imageUrl);
+      // 反代图片内容，而不是重定向
+      try {
+        const imageResponse = await fetch(imageUrl);
+        
+        if (!imageResponse.ok) {
+          throw new Error(`获取图片失败: ${imageResponse.status}`);
+        }
+        
+        // 获取图片的 Content-Type
+        const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
+        
+        // 设置响应头
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Cache-Control', 'public, max-age=3600'); // 缓存1小时
+        res.setHeader('X-Image-Name', randomImage.name);
+        res.setHeader('X-Total-Images', imageFiles.length.toString());
+        
+        // 获取图片数据并返回
+        const imageBuffer = await imageResponse.arrayBuffer();
+        return res.status(200).send(Buffer.from(imageBuffer));
+        
+      } catch (proxyError) {
+        console.error('反代图片错误:', proxyError);
+        return res.status(500).json({
+          error: '获取图片失败',
+          message: proxyError.message,
+          imageUrl: imageUrl
+        });
+      }
     }
 
   } catch (error) {
