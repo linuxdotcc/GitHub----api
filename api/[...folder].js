@@ -8,10 +8,20 @@ export default async function handler(req, res) {
     const { folder } = req.query;
     const folderPath = Array.isArray(folder) ? folder.join('/') : folder;
     
+    // 调试信息
+    console.log('req.query:', req.query);
+    console.log('folder:', folder);
+    console.log('folderPath:', folderPath);
+    
     if (!folderPath) {
       return res.status(400).json({
         error: '请指定文件夹路径',
-        usage: 'https://your-domain.vercel.app/folder_name'
+        usage: 'https://your-domain.vercel.app/folder_name',
+        debug: {
+          query: req.query,
+          folder: folder,
+          url: req.url
+        }
       });
     }
 
